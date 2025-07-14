@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador de Malla Curricular</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rubik&display=swap');
+    
+    body {
+      font-family: 'Rubik', sans-serif;
+      padding: 20px;
+    }
+    #malla-container {
+      position: relative;
+    }
+    #malla {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      overflow-x: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .semestre {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 10px;
+      min-width: 200px;
+      transition: background-color 0.3s ease;
+      margin-right: 10px;
+    }
+    .asignatura {
+      width: 90%;
+      padding: 10px;
+      margin: 5px 0;
+      text-align: center;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #eee;
+      transition: background-color 0.3s ease;
+      position: relative;
+      z-index: 2;
+    }
+    .asignatura:active {
+      filter: brightness(1.2);
+    }
+    .aprobada {
+      background-color: #b5f5b5;
+      border-color: #5cb85c;
+    }
+    .bloqueada {
+      background-color: #e0e0e0;
+      border-color: #999;
+      cursor: not-allowed;
+    }
+    .resumen {
+      margin: 20px 0;
+      font-weight: bold;
+    }
+    #controles {
+      margin-bottom: 10px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simulador de Malla Curricular</h1>
+  <div id="controles">
+    <button onclick="reiniciarMalla()">🔄 Reiniciar Malla</button>
+  </div>
+  <div class="resumen" id="resumen"></div>
+  <div id="malla"></div>
+
+  <script>
+    const coloresSemestre = [
+      "#fbe9e7", "#f3e5f5", "#e3f2fd", "#e8f5e9", "#fff3e0",
+      "#fce4ec", "#ede7f6", "#f9fbe7", "#e0f2f1", "#f3e5f5"
+    ];
+
+    const malla = [
+      [
+        { nombre: "Principios Matemáticos", id: "MAT015", prerreq: [] },
+        { nombre: "Biología Celular", id: "BIO002", prerreq: [] },
+        { nombre: "Química General", id: "QUI001", prerreq: [] },
+        { nombre: "Introducción a la Tecnología Médica", id: "TME065", prerreq: [] },
+        { nombre: "Taller de Competencias Comunicativas", id: "FGL149", prerreq: [] },
+        { nombre: "Taller de Competencias para el Aprendizaje", id: "COM001", prerreq: [] },
+        { nombre: "Taller de Desarrollo Personal I", id: "FGL001", prerreq: [] }
+      ],
+      [
+        { nombre: "Biofísica", id: "FIS002", prerreq: [] },
+        { nombre: "Proc. de Enfermería y Primeros Auxilios", id: "ENF098", prerreq: [] },
+        { nombre: "Química Orgánica", id: "QUI002", prerreq: ["QUI001"] },
+        { nombre: "Anatomía", id: "TME066", prerreq: [] },
+        { nombre: "Histología", id: "TME135", prerreq: [] },
+        { nombre: "Taller de Desarrollo Personal II", id: "FGL002", prerreq: ["FGL001"] },
+        { nombre: "Cultura y Valores", id: "FGL003", prerreq: [] }
+      ],
+      [
+        { nombre: "Estadística para Ciencias de la Salud", id: "KIN118", prerreq: [] },
+        { nombre: "Inmunología Básica", id: "TME068", prerreq: [] },
+        { nombre: "Fundamentos de la Bioquímica", id: "TME060", prerreq: ["QUI002"] },
+        { nombre: "Fisiología", id: "TME067", prerreq: ["TME066"] },
+        { nombre: "Bioseguridad", id: "TME064", prerreq: [] },
+        { nombre: "Persona y Sentido", id: "FGL135", prerreq: [] },
+        { nombre: "Inglés Básico I", id: "FGL010", prerreq: [] }
+      ],
+      [
+        { nombre: "Fundamentos en Salud Pública", id: "ENF109", prerreq: [] },
+        { nombre: "Ética en Salud", id: "ENF080", prerreq: [] },
+        { nombre: "Bioquímica Clínica Básica", id: "TME145", prerreq: ["TME060"] },
+        { nombre: "Fisopatología", id: "TME070", prerreq: ["TME067"] },
+        { nombre: "Gestión de Calidad", id: "TME146", prerreq: [] },
+        { nombre: "Inglés Básico II", id: "FGL011", prerreq: ["FGL010"] }
+      ],
+      [
+        { nombre: "Parasitología Clínica", id: "TME080", prerreq: ["TME070"] },
+        { nombre: "Microbiología Básica", id: "TME147", prerreq: ["TME070"] },
+        { nombre: "Bioquímica Clínica Aplicada", id: "TME169", prerreq: ["TME145"] },
+        { nombre: "Inmunología Clínica", id: "TME074", prerreq: ["TME068"] },
+        { nombre: "Gestión de Calidad y Adm. de Laboratorio", id: "TME150", prerreq: ["TME146"] }
+      ],
+      [
+        { nombre: "Microbiología Clínica", id: "TME077", prerreq: ["TME147"] },
+        { nombre: "Diagnóstico Molecular", id: "TME078", prerreq: ["TME077"] }
+      ],
+      [
+        { nombre: "Inmunohematología", id: "TME060H", prerreq: ["TME080"] },
+        { nombre: "Hematología Básica", id: "TME076", prerreq: ["TME070"] },
+        { nombre: "Integrado Clínico I", id: "TME170", prerreq: ["TME074", "TME169"] }
+      ],
+      [
+        { nombre: "Medicina Transfusional", id: "TME149", prerreq: ["TME060H"] },
+        { nombre: "Hematología Clínica", id: "TME150B", prerreq: ["TME076"] },
+        { nombre: "Metodología de la Investigación", id: "TME142", prerreq: ["KIN118"] },
+        { nombre: "Electivo I", id: "TMEEL1", prerreq: [] },
+        { nombre: "Electivo II", id: "TMEEL2", prerreq: [] },
+        { nombre: "Electivo III", id: "TMEEL3", prerreq: [] }
+      ],
+      [
+        { nombre: "Gestión en Salud", id: "ENF079", prerreq: [] },
+        { nombre: "Seminario de Investigación", id: "TME160", prerreq: ["TME142"] },
+        { nombre: "Integrado Clínico II", id: "TME171", prerreq: ["TME170"] }
+      ],
+      [
+        { nombre: "Internado Profesional Microbiología/Parasitología Clínica", id: "TME172", prerreq: ["TME147", "TME080"] },
+        { nombre: "Internado Profesional Química Clínica", id: "TME173", prerreq: ["TME169"] },
+        { nombre: "Internado Profesional Hematología Clínica", id: "TME174", prerreq: ["TME076", "TME150B"] },
+        { nombre: "Internado Profesional Medicina Transfusional", id: "TME175", prerreq: ["TME149"] },
+        { nombre: "Actividad de Titulación", id: "TME144", prerreq: ["TME171"] }
+      ]
+    ];
+    const aprobadas = new Set(JSON.parse(localStorage.getItem("asignaturasAprobadas") || "[]"));
+
+    function guardarProgreso() {
+      localStorage.setItem("asignaturasAprobadas", JSON.stringify([...aprobadas]));
+    }
+
+    function reiniciarMalla() {
+      aprobadas.clear();
+      guardarProgreso();
+      crearMalla();
+    }
+
+    function crearMalla() {
+      const contenedor = document.getElementById("malla");
+      const resumen = document.getElementById("resumen");
+      contenedor.innerHTML = "";
+
+      let total = 0;
+      let minSemestre = 11;
+
+      malla.forEach((semestre, idx) => {
+        const columna = document.createElement("div");
+        columna.className = "semestre";
+        columna.style.backgroundColor = coloresSemestre[idx % coloresSemestre.length];
+        const titulo = document.createElement("h3");
+        titulo.textContent = `Semestre ${idx + 1}`;
+        columna.appendChild(titulo);
+
+        semestre.forEach(asig => {
+          total++;
+          const boton = document.createElement("div");
+          boton.className = "asignatura";
+          boton.id = asig.id;
+          boton.innerText = asig.nombre;
+
+          const habilitada = asig.prerreq.every(id => aprobadas.has(id));
+          if (aprobadas.has(asig.id)) {
+            boton.classList.add("aprobada");
+            if (idx + 1 < minSemestre) minSemestre = idx + 1;
+          } else if (!habilitada) {
+            boton.classList.add("bloqueada");
+          }
+
+          if (habilitada || aprobadas.has(asig.id)) {
+            boton.addEventListener("click", () => toggleAprobada(asig));
+          }
+
+          columna.appendChild(boton);
+        });
+
+        contenedor.appendChild(columna);
+      });
+
+      const aprobadasTotal = aprobadas.size;
+      const pendientes = total - aprobadasTotal;
+      const porcentaje = total > 0 ? ((aprobadasTotal / total) * 100).toFixed(2) : 0;
+      const nivelMinimo = aprobadasTotal === 0 ? "N/A" : minSemestre;
+
+      resumen.innerHTML = `Asignaturas aprobadas: ${aprobadasTotal} | Pendientes: ${pendientes} | Porcentaje completado: ${porcentaje}% | Nivel mínimo aprobado: ${nivelMinimo}`;
+    }
+
+    function toggleAprobada(asig) {
+      if (aprobadas.has(asig.id)) {
+        aprobadas.delete(asig.id);
+        limpiarDependencias(asig.id);
+      } else {
+        const habilitada = asig.prerreq.every(id => aprobadas.has(id));
+        if (habilitada) {
+          aprobadas.add(asig.id);
+        }
+      }
+      guardarProgreso();
+      crearMalla();
+    }
+
+    function limpiarDependencias(idDesmarcado) {
+      malla.flat().forEach(asig => {
+        if (asig.prerreq.includes(idDesmarcado) && aprobadas.has(asig.id)) {
+          aprobadas.delete(asig.id);
+          limpiarDependencias(asig.id);
+        }
+      });
+    }
+
+    crearMalla();
+  </script>
+</body>
+</html>
